@@ -1,0 +1,44 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.g.dart
+*.freezed.dart
+# pubspec.lock is intentionally committed for reproducible builds
+
+# Root-level loose source files (canonical source is in lib/)
+/main.dart
+/printer_state.dart
+/moonraker_service.dart
+/viewer_screen.dart
+/settings_screen.dart
+/info_overlay.dart
+/*.zip
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+*.apk
+*.aab
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+macos/Pods/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
