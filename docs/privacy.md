@@ -2,7 +2,7 @@
 
 Last updated: 5 May 2026
 
-Moonraker Viewer ("the app") is developed by Koen Verduijn as
+Moonraker Viewer ("the app") is developed by Koen Erens as
 free, open-source software. This policy explains what data
 the app does and does not handle.
 
