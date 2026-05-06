@@ -20,11 +20,11 @@ flutter analyze          # lint
 
 ## Architecture
 
-All source files currently live flat in the project root (not under `lib/`). The intended canonical structure (from the zip archive) is:
+Source files live under `lib/`:
 
 ```
 lib/
-  main.dart                     # entry point, orientation lock, theme
+  main.dart                     # entry point, orientation lock, immersive mode, theme
   models/printer_state.dart     # data model + Moonraker JSON parsing
   services/moonraker_service.dart
   screens/viewer_screen.dart
@@ -34,16 +34,20 @@ lib/
 
 **Data flow:**
 
-1. `SettingsScreen` saves host + stream URL to `SharedPreferences`.
-2. `ViewerScreen` loads those prefs on init, opens `MoonrakerService`, renders `Mjpeg` + `InfoOverlay`.
-3. `MoonrakerService` connects via WebSocket (default port 7125), subscribes to five Moonraker objects (`print_stats`, `virtual_sdcard`, `display_status`, `extruder`, `heater_bed`), merges partial updates, emits `PrinterState` on a `StreamController`.
-4. `InfoOverlay` consumes the stream and shows temperatures, progress, elapsed/remaining time, and connection state.
+1. `SettingsScreen` saves host + port to `SharedPreferences`.
+2. `ViewerScreen` loads those prefs on init, opens `MoonrakerService`, fetches the webcam URL from Moonraker, renders `Mjpeg` + `InfoOverlay`.
+3. `MoonrakerService` connects via WebSocket (default port 7125), subscribes to six Moonraker objects (`print_stats`, `virtual_sdcard`, `display_status`, `extruder`, `heater_bed`, `gcode_move`), merges partial updates, emits `PrinterState` on a `StreamController`.
+4. `InfoOverlay` consumes the stream and shows temperatures, progress, elapsed/remaining time, ETA wall clock, speed/flow/speed-override, layer count, print thumbnail, and connection state.
 
 **Key implementation notes:**
 
 - No state management library — plain Dart streams + `setState`.
 - Auto-reconnect: 3-second retry loop on WebSocket disconnect.
 - Keepalive: periodic query every 20 seconds to prevent server timeout.
+- `main.dart` locks orientation to landscape and enables `SystemUiMode.immersiveSticky`.
 - `InteractiveViewer` wraps the MJPEG widget for pinch-zoom (1×–6×) and pan; double-tap resets; single-tap toggles overlay.
+- Webcam URL is auto-fetched via `GET /server/webcams/list`. Relative stream URLs are resolved against port 4408 (Creality K1/K1C nginx proxy).
+- Print thumbnail is fetched via `GET /server/files/metadata?filename=<file>` and displayed in the overlay top-left.
+- `PrinterState` also parses `gcode_move` (speed, speedFactor, extrudeFactor) and `print_stats.info` (currentLayer, totalLayer).
+- D-pad / keyboard navigation is supported for Android TV remotes: select/enter/gameButtonA toggles the overlay; arrow keys navigate settings fields.
 - Cleartext HTTP is required for LAN printer connections — configured via `AndroidManifest.xml` (`android:usesCleartextTraffic="true"`) and `Info.plist` ATS exemption on iOS.
-- Camera stream URL defaults to `http://<host>/webcam/?action=stream` but can be overridden in settings.
