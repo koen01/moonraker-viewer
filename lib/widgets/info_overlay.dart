@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/printer_state.dart';
 
 class InfoOverlay extends StatelessWidget {
@@ -233,7 +234,7 @@ class InfoOverlay extends StatelessWidget {
 
   Widget _hotendChip() {
     final heating = state.extruderPower > 0.01;
-    final icon = Icons.local_fire_department;
+    const icon = Icons.local_fire_department;
     final value =
         '${state.extruderTemp.toStringAsFixed(0)}° / ${state.extruderTarget.toStringAsFixed(0)}°C';
     return Container(
@@ -358,6 +359,16 @@ class _FocusableIconButtonState extends State<_FocusableIconButton> {
   Widget build(BuildContext context) {
     return Focus(
       onFocusChange: (f) => setState(() => _focused = f),
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.select ||
+            event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.space) {
+          widget.onPressed();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
