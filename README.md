@@ -22,28 +22,15 @@ Simple Flutter app that shows your 3D printer's camera feed fullscreen with live
    flutter run
    ```
 
-2. **Allow cleartext HTTP** (Moonraker typically runs without HTTPS on a LAN).
+2. **iOS only — allow cleartext HTTP** (Moonraker typically runs without HTTPS on a LAN).
 
-   **Android** — in `android/app/src/main/AndroidManifest.xml` inside the `<application>` element:
-   ```xml
-   <application
-       android:label="Moonraker Viewer"
-       android:usesCleartextTraffic="true"
-       ...>
-   ```
-
-   **iOS** — in `ios/Runner/Info.plist`:
+   Android is already configured. For iOS, add to `ios/Runner/Info.plist`:
    ```xml
    <key>NSAppTransportSecurity</key>
    <dict>
        <key>NSAllowsArbitraryLoads</key>
        <true/>
    </dict>
-   <key>UISupportedInterfaceOrientations</key>
-   <array>
-       <string>UIInterfaceOrientationLandscapeLeft</string>
-       <string>UIInterfaceOrientationLandscapeRight</string>
-   </array>
    ```
 
 ## First run
