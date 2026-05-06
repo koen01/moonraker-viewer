@@ -42,3 +42,6 @@ macos/Pods/
 # OS
 .DS_Store
 Thumbs.db
+android/key.properties
+**/*.jks
+**/*.keystore
