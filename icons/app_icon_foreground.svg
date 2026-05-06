@@ -1,0 +1,8 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Foreground only: the symbol, scaled down to ~62% to respect Android's 66dp safe zone.
+       Adaptive icons get cropped/masked, so keep important content well within the inner circle.
+       The symbol is centered around (512, 512) and fits within a ~640px circle. -->
+  <circle cx="512" cy="512" r="240" fill="#FFFFFF"/>
+  <circle cx="576" cy="486" r="216" fill="#0F766E"/>
+  <polygon points="474,422 474,626 646,524" fill="#FFFFFF"/>
+</svg>

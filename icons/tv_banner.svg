@@ -1,0 +1,13 @@
+<svg width="320" height="180" viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="320" height="180" fill="#0F766E"/>
+  <rect x="0" y="0" width="320" height="180" fill="#14B8A6" opacity="0.10"/>
+
+  <!-- App icon, left side -->
+  <circle cx="60" cy="90" r="32" fill="#FFFFFF"/>
+  <circle cx="68" cy="86" r="29" fill="#0F766E"/>
+  <polygon points="53,75 53,105 73,90" fill="#FFFFFF"/>
+
+  <!-- App name, right side -->
+  <text x="115" y="86" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="600" fill="#FFFFFF">Moonraker</text>
+  <text x="115" y="115" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="300" fill="#FFFFFF" opacity="0.95">Viewer</text>
+</svg>

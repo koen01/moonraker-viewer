@@ -27,6 +27,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _connected = false;
   bool _showOverlay = true;
   final TransformationController _transform = TransformationController();
+  final FocusNode _settingsFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -166,6 +167,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void dispose() {
     _service?.dispose();
     _transform.dispose();
+    _settingsFocusNode.dispose();
     super.dispose();
   }
 
@@ -173,7 +175,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   Widget build(BuildContext context) {
     final host = _moonrakerHost;
     final stream = _webcamUrl;
-    return Scaffold(
+    return PopScope(
+      canPop: !_showOverlay,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _showOverlay = false);
+      },
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
         autofocus: true,
@@ -184,7 +191,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
           if (key == LogicalKeyboardKey.select ||
               key == LogicalKeyboardKey.enter ||
               key == LogicalKeyboardKey.gameButtonA) {
-            setState(() => _showOverlay = !_showOverlay);
+            // Show overlay if hidden, then move focus to the settings cog so
+            // the user can press select a second time to open settings.
+            if (!_showOverlay) setState(() => _showOverlay = true);
+            _settingsFocusNode.requestFocus();
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -239,11 +249,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 connected: _connected,
                 thumbnailUrl: _thumbnailUrl,
                 onSettings: _openSettings,
+                settingsFocusNode: _settingsFocusNode,
               ),
           ],
         ),
         ),  // GestureDetector
       ),    // Focus
-    );
+      ),    // Scaffold
+    );      // PopScope
   }
 }

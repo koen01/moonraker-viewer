@@ -1,10 +1,19 @@
 name: moonraker_viewer
 description: Simple Moonraker job viewer with fullscreen camera feed and overlay.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.3+103
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0F766E"
+  adaptive_icon_foreground: "assets/app_icon_foreground.png"
+  remove_alpha_ios: false
 
 dependencies:
   flutter:
@@ -17,6 +26,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

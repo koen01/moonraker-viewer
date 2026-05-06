@@ -7,6 +7,7 @@ class InfoOverlay extends StatelessWidget {
   final bool connected;
   final String? thumbnailUrl;
   final VoidCallback onSettings;
+  final FocusNode? settingsFocusNode;
 
   const InfoOverlay({
     super.key,
@@ -14,6 +15,7 @@ class InfoOverlay extends StatelessWidget {
     required this.connected,
     required this.onSettings,
     this.thumbnailUrl,
+    this.settingsFocusNode,
   });
 
   Color _stateColor() {
@@ -154,6 +156,7 @@ class InfoOverlay extends StatelessWidget {
                     icon: Icons.settings,
                     onPressed: onSettings,
                     tooltip: 'Settings',
+                    focusNode: settingsFocusNode,
                   ),
                 ],
               ),
@@ -345,8 +348,9 @@ class _FocusableIconButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback onPressed;
   final String tooltip;
+  final FocusNode? focusNode;
   const _FocusableIconButton(
-      {required this.icon, required this.onPressed, required this.tooltip});
+      {required this.icon, required this.onPressed, required this.tooltip, this.focusNode});
 
   @override
   State<_FocusableIconButton> createState() => _FocusableIconButtonState();
@@ -358,6 +362,7 @@ class _FocusableIconButtonState extends State<_FocusableIconButton> {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      focusNode: widget.focusNode,
       onFocusChange: (f) => setState(() => _focused = f),
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
