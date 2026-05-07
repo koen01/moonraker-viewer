@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/printer_state.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/moonraker_service.dart';
 import '../widgets/info_overlay.dart';
 import 'settings_screen.dart';
@@ -43,6 +44,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _moonrakerHost = host;
       _moonrakerPort = port;
     });
+    final keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
+    await WakelockPlus.toggle(enable: keepScreenOn);
     if (host == null || host.isEmpty) {
       _openSettings();
     } else {

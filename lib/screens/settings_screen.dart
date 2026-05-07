@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _portFocus = FocusNode();
   final _saveFocus = FocusNode();
   bool _loaded = false;
+  bool _keepScreenOn = true;
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _saveFocus.requestFocus();
           return KeyEventResult.handled;
         }
+        // Note: wakelock toggle is handled by SwitchListTile itself
       }
       return KeyEventResult.ignored;
     };
@@ -49,7 +52,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     _hostController.text = prefs.getString('moonraker_host') ?? '';
     _portController.text = (prefs.getInt('moonraker_port') ?? 7125).toString();
-    setState(() => _loaded = true);
+    setState(() {
+      _keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
+      _loaded = true;
+    });
   }
 
   Future<void> _save() async {
@@ -57,6 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('moonraker_host', _hostController.text.trim());
     await prefs.setInt('moonraker_port', port);
+    await prefs.setBool('keep_screen_on', _keepScreenOn);
+    await WakelockPlus.toggle(enable: _keepScreenOn);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -126,6 +134,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       hintText: '7125',
                       border: OutlineInputBorder(),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  SwitchListTile(
+                    value: _keepScreenOn,
+                    onChanged: (v) => setState(() => _keepScreenOn = v),
+                    title: const Text('Keep screen on',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    subtitle: const Text(
+                      'Prevent the screen from turning off while the app is open.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    contentPadding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
