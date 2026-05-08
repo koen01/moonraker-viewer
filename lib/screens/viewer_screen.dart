@@ -27,6 +27,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   PrinterState _state = PrinterState.idle();
   bool _connected = false;
   bool _showOverlay = true;
+  bool _showConsole = false;
+  final List<String> _consoleLines = [];
   final TransformationController _transform = TransformationController();
   final FocusNode _settingsFocusNode = FocusNode();
 
@@ -45,6 +47,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _moonrakerPort = port;
     });
     final keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
+    final showConsole = prefs.getBool('show_console') ?? false;
+    setState(() => _showConsole = showConsole);
     await WakelockPlus.toggle(enable: keepScreenOn);
     if (host == null || host.isEmpty) {
       _openSettings();
@@ -65,6 +69,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
     svc.connectionStream.listen((c) {
       if (mounted) setState(() => _connected = c);
+    });
+    svc.consoleStream.listen((line) {
+      if (!mounted) return;
+      final now = DateTime.now();
+      final ts =
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+      setState(() {
+        _consoleLines.add('$ts  $line');
+        if (_consoleLines.length > 15) _consoleLines.removeAt(0);
+      });
     });
     svc.connect();
     _service = svc;
@@ -157,9 +171,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
       setState(() {
         _moonrakerHost = prefs.getString('moonraker_host');
         _moonrakerPort = prefs.getInt('moonraker_port') ?? 7125;
+        _showConsole = prefs.getBool('show_console') ?? false;
         _webcamUrl = null;
         _thumbnailUrl = null;
         _lastThumbnailFilename = null;
+        _consoleLines.clear();
       });
       _transform.value = Matrix4.identity();
       _connect();
@@ -253,6 +269,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 thumbnailUrl: _thumbnailUrl,
                 onSettings: _openSettings,
                 settingsFocusNode: _settingsFocusNode,
+                consoleLines: _showConsole ? _consoleLines : null,
               ),
           ],
         ),

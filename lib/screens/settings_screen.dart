@@ -18,6 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _saveFocus = FocusNode();
   bool _loaded = false;
   bool _keepScreenOn = true;
+  bool _showConsole = false;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _portController.text = (prefs.getInt('moonraker_port') ?? 7125).toString();
     setState(() {
       _keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
+      _showConsole = prefs.getBool('show_console') ?? false;
       _loaded = true;
     });
   }
@@ -64,6 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setString('moonraker_host', _hostController.text.trim());
     await prefs.setInt('moonraker_port', port);
     await prefs.setBool('keep_screen_on', _keepScreenOn);
+    await prefs.setBool('show_console', _showConsole);
     await WakelockPlus.toggle(enable: _keepScreenOn);
     if (!mounted) return;
     Navigator.of(context).pop(true);
@@ -144,6 +147,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 16, fontWeight: FontWeight.bold)),
                     subtitle: const Text(
                       'Prevent the screen from turning off while the app is open.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  SwitchListTile(
+                    value: _showConsole,
+                    onChanged: (v) => setState(() => _showConsole = v),
+                    title: const Text('Show console overlay',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    subtitle: const Text(
+                      'Show the last 15 Klipper messages in the bottom-right corner.',
                       style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     contentPadding: EdgeInsets.zero,

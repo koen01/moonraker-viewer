@@ -8,6 +8,7 @@ class InfoOverlay extends StatelessWidget {
   final String? thumbnailUrl;
   final VoidCallback onSettings;
   final FocusNode? settingsFocusNode;
+  final List<String>? consoleLines;
 
   const InfoOverlay({
     super.key,
@@ -16,6 +17,7 @@ class InfoOverlay extends StatelessWidget {
     required this.onSettings,
     this.thumbnailUrl,
     this.settingsFocusNode,
+    this.consoleLines,
   });
 
   Color _stateColor() {
@@ -162,6 +164,15 @@ class InfoOverlay extends StatelessWidget {
               ),
             ),
           ),
+
+          // ── Console overlay (bottom-right) ──────────────────────
+          if (consoleLines != null && consoleLines!.isNotEmpty)
+            Positioned(
+              right: 12,
+              bottom: 110,
+              width: 320,
+              child: _ConsoleBox(lines: consoleLines!),
+            ),
 
           // ── Bottom bar ───────────────────────────────────────────
           Positioned(
@@ -311,6 +322,42 @@ class InfoOverlay extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+class _ConsoleBox extends StatelessWidget {
+  final List<String> lines;
+  const _ConsoleBox({required this.lines});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: lines
+            .map(
+              (line) => Text(
+                line,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                  height: 1.4,
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }

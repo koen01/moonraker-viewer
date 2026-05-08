@@ -1,7 +1,7 @@
 name: moonraker_viewer
 description: Simple Moonraker job viewer with fullscreen camera feed and overlay.
 publish_to: 'none'
-version: 1.0.7+107
+version: 1.0.7+108
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

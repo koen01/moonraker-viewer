@@ -15,10 +15,12 @@ class MoonrakerService {
 
   final _stateController = StreamController<PrinterState>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
+  final _consoleController = StreamController<String>.broadcast();
   final Map<String, dynamic> _accumulated = {};
 
   Stream<PrinterState> get stateStream => _stateController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
+  Stream<String> get consoleStream => _consoleController.stream;
 
   MoonrakerService({required this.host, this.port = 7125});
 
@@ -100,6 +102,13 @@ class MoonrakerService {
         if (result is Map && result['status'] is Map) {
           status = (result['status'] as Map).cast<String, dynamic>();
         }
+      } else if (data['method'] == 'notify_gcode_response') {
+        final params = data['params'];
+        if (params is List) {
+          for (final p in params) {
+            if (p is String && p.isNotEmpty) _consoleController.add(p);
+          }
+        }
       } else if (data['method'] == 'notify_status_update') {
         final params = data['params'];
         if (params is List && params.isNotEmpty && params[0] is Map) {
@@ -141,5 +150,6 @@ class MoonrakerService {
     _channel?.sink.close();
     _stateController.close();
     _connectionController.close();
+    _consoleController.close();
   }
 }
