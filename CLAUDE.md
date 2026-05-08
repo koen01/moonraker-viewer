@@ -36,8 +36,8 @@ lib/
 
 1. `SettingsScreen` saves host + port to `SharedPreferences`.
 2. `ViewerScreen` loads those prefs on init, opens `MoonrakerService`, fetches the webcam URL from Moonraker, renders `Mjpeg` + `InfoOverlay`.
-3. `MoonrakerService` connects via WebSocket (default port 7125), subscribes to six Moonraker objects (`print_stats`, `virtual_sdcard`, `display_status`, `extruder`, `heater_bed`, `gcode_move`), merges partial updates, emits `PrinterState` on a `StreamController`.
-4. `InfoOverlay` consumes the stream and shows temperatures, progress, elapsed/remaining time, ETA wall clock, speed/flow/speed-override, layer count, print thumbnail, and connection state.
+3. `MoonrakerService` connects via WebSocket (default port 7125), subscribes to six Moonraker objects (`print_stats`, `virtual_sdcard`, `display_status`, `extruder`, `heater_bed`, `gcode_move`), merges partial updates, emits `PrinterState` on a `StreamController`. Also listens for `notify_gcode_response` notifications and emits raw strings on `consoleStream`.
+4. `InfoOverlay` consumes the stream and shows temperatures, progress, elapsed/remaining time, ETA wall clock, speed/flow/speed-override, layer count, print thumbnail, and connection state. Optionally shows a console overlay (last 15 Klipper messages, bottom-right).
 
 **Key implementation notes:**
 
@@ -51,3 +51,4 @@ lib/
 - `PrinterState` also parses `gcode_move` (speed, speedFactor, extrudeFactor) and `print_stats.info` (currentLayer, totalLayer).
 - D-pad / keyboard navigation is supported for Android TV remotes: select/enter/gameButtonA toggles the overlay; arrow keys navigate settings fields.
 - Cleartext HTTP is required for LAN printer connections — configured via `AndroidManifest.xml` (`android:usesCleartextTraffic="true"`) and `Info.plist` ATS exemption on iOS.
+- Console overlay: `MoonrakerService` emits `notify_gcode_response` messages on `consoleStream`; `ViewerScreen` maintains a 15-line rolling buffer (with `HH:MM:SS` timestamps) passed to `InfoOverlay` as `consoleLines`. Toggled via `show_console` in `SharedPreferences`.

@@ -73,6 +73,7 @@ Manages the WebSocket connection to Moonraker. Owns all reconnect and keepalive 
 - Merge partial status updates into a single accumulated map
 - Emit `PrinterState` snapshots on `stateStream`
 - Emit connection status booleans on `connectionStream`
+- Emit raw `notify_gcode_response` strings on `consoleStream`
 - Auto-reconnect after 3 seconds on disconnect or error
 - Send a keepalive query every 20 seconds to prevent server timeout
 
@@ -83,6 +84,7 @@ MoonrakerService({required String host, int port = 7125})
 
 Stream<PrinterState> get stateStream
 Stream<bool>         get connectionStream
+Stream<String>       get consoleStream
 
 void connect()
 void dispose()
@@ -114,6 +116,8 @@ The main screen and top-level state owner. Rendered immediately on launch.
 | `_state` | Latest `PrinterState` from the service stream |
 | `_connected` | Latest connection status |
 | `_showOverlay` | Whether `InfoOverlay` is visible |
+| `_showConsole` | Whether the console overlay is enabled (from prefs) |
+| `_consoleLines` | Rolling buffer of last 15 Klipper console messages |
 | `_transform` | `TransformationController` for `InteractiveViewer` |
 
 **Webcam URL resolution:**
@@ -137,6 +141,8 @@ Simple form to configure the Moonraker host and port. Persists values to `Shared
 |---|---|---|
 | `moonraker_host` | String | — |
 | `moonraker_port` | int | 7125 |
+| `keep_screen_on` | bool | true |
+| `show_console` | bool | false |
 
 Includes D-pad / arrow-key navigation between fields for Android TV remote support.
 
@@ -148,6 +154,7 @@ Stateless widget. Renders a heads-up display over the camera feed.
 **Layout:**
 - **Top bar** (gradient, top-aligned): thumbnail, status dot, state label, filename, ETA, speed/flow/override info, settings gear button
 - **Bottom bar** (gradient, bottom-aligned): temperature chips, layer chip, elapsed/remaining chips, progress bar + percentage
+- **Console box** (optional, bottom-right, above bottom bar): last 15 Klipper messages with `HH:MM:SS` timestamps, semi-transparent background
 
 **Inputs:**
 
@@ -157,10 +164,12 @@ Stateless widget. Renders a heads-up display over the camera feed.
 | `connected` | `bool` | WebSocket connection status |
 | `thumbnailUrl` | `String?` | URL for the print thumbnail image |
 | `onSettings` | `VoidCallback` | Opens `SettingsScreen` |
+| `consoleLines` | `List<String>?` | Rolling console buffer; `null` hides the console box |
 
-Contains two private helpers:
+Contains three private helpers:
 - `_Thumbnail` — renders the thumbnail image with a placeholder fallback
 - `_FocusableIconButton` — icon button with animated focus ring for TV remote navigation
+- `_ConsoleBox` — monospace log display for Klipper console messages
 
 ---
 
@@ -180,13 +189,17 @@ MoonrakerService                                        /server/webcams/list
       │  subscribe (6 objects)
       │◄─────────────────── Moonraker server
       │  notify_status_update
+      │  notify_gcode_response
       │
       │ merge partial updates
-      │ emit PrinterState
+      │ emit PrinterState     → ViewerScreen._state
+      │ emit bool             → ViewerScreen._connected
+      │ emit String           → ViewerScreen._consoleLines (rolling 15)
       ▼
-ViewerScreen._state  ──► InfoOverlay
-ViewerScreen._connected ──► InfoOverlay
-ViewerScreen._webcamUrl ──► Mjpeg widget
+ViewerScreen._state        ──► InfoOverlay
+ViewerScreen._connected    ──► InfoOverlay
+ViewerScreen._consoleLines ──► InfoOverlay (when show_console=true)
+ViewerScreen._webcamUrl    ──► Mjpeg widget
 ViewerScreen._thumbnailUrl ──► InfoOverlay
 ```
 
@@ -206,11 +219,12 @@ This is intentional — the app is simple enough that a full state management so
 
 ## 6. Key Dependencies
 
-| Package | Purpose |
-|---|---|
-| `flutter_mjpeg` | MJPEG stream rendering |
-| `web_socket_channel` | WebSocket client |
-| `shared_preferences` | Persistent settings storage |
+| Package | Version | Purpose |
+|---|---|---|
+| `flutter_mjpeg` | ^2.0.4 | MJPEG stream rendering |
+| `web_socket_channel` | ^3.0.3 | WebSocket client |
+| `shared_preferences` | ^2.2.3 | Persistent settings storage |
+| `wakelock_plus` | ^1.5.2 | Keep screen on while viewing |
 
 ---
 
