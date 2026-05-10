@@ -198,29 +198,19 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   Widget _buildPaneWrapper(
       int index, String host, int port, FocusNode focusNode) {
-    final highlighted = _highlightedPane == index;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: highlighted ? Colors.white38 : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: PrinterPane(
-        key: ValueKey('split_$index'),
-        host: host,
-        port: port,
-        compact: true,
-        showOverlay: true,
-        showConsole: false,
-        onSettings: _openSettings,
-        settingsFocusNode: focusNode,
-        onTap: () => setState(() {
-          _focusedPane = index;
-          _showOverlay = true;
-        }),
-      ),
+    return PrinterPane(
+      key: ValueKey('split_$index'),
+      host: host,
+      port: port,
+      compact: true,
+      showOverlay: true,
+      showConsole: false,
+      onSettings: _openSettings,
+      settingsFocusNode: focusNode,
+      onTap: () => setState(() {
+        _focusedPane = index;
+        _showOverlay = true;
+      }),
     );
   }
 }

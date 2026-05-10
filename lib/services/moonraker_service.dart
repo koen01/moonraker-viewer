@@ -39,19 +39,22 @@ class MoonrakerService {
     if (_disposed) return;
     try {
       _channel = WebSocketChannel.connect(Uri.parse(_wsUrl));
+      _channel!.ready.then((_) {
+        if (_disposed) return;
+        _connectionController.add(true);
+        _subscribe();
+        _queryOnce();
+        _pingTimer?.cancel();
+        _pingTimer = Timer.periodic(
+          const Duration(seconds: 20),
+          (_) => _queryOnce(),
+        );
+      }).catchError((_) { _scheduleReconnect(); });
       _channel!.stream.listen(
         _onMessage,
         onError: (_) => _scheduleReconnect(),
         onDone: _scheduleReconnect,
         cancelOnError: true,
-      );
-      _connectionController.add(true);
-      _subscribe();
-      _queryOnce();
-      _pingTimer?.cancel();
-      _pingTimer = Timer.periodic(
-        const Duration(seconds: 20),
-        (_) => _queryOnce(),
       );
     } catch (_) {
       _scheduleReconnect();
