@@ -9,6 +9,7 @@ class InfoOverlay extends StatelessWidget {
   final VoidCallback onSettings;
   final FocusNode? settingsFocusNode;
   final List<String>? consoleLines;
+  final bool compact;
 
   const InfoOverlay({
     super.key,
@@ -18,6 +19,7 @@ class InfoOverlay extends StatelessWidget {
     this.thumbnailUrl,
     this.settingsFocusNode,
     this.consoleLines,
+    this.compact = false,
   });
 
   Color _stateColor() {
@@ -41,6 +43,8 @@ class InfoOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (compact) return _buildCompact();
+
     final pct = (state.progress * 100).toStringAsFixed(1);
     final eta = state.etaWallClock;
     final speedPct = (state.speedFactor * 100).round();
@@ -246,6 +250,101 @@ class InfoOverlay extends StatelessWidget {
     );
   }
 
+  Widget _buildCompact() {
+    final pct = (state.progress * 100).toStringAsFixed(1);
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.black87, Colors.transparent],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: connected ? _stateColor() : Colors.grey,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  state.state.toUpperCase(),
+                  style: TextStyle(
+                    color: _stateColor(),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+                const Spacer(),
+                Icon(Icons.local_fire_department,
+                    color: Colors.white60, size: 12),
+                const SizedBox(width: 3),
+                Text(
+                  '${state.extruderTemp.toStringAsFixed(0)}°/${state.extruderTarget.toStringAsFixed(0)}°',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.bed, color: Colors.white60, size: 12),
+                const SizedBox(width: 3),
+                Text(
+                  '${state.bedTemp.toStringAsFixed(0)}°/${state.bedTarget.toStringAsFixed(0)}°',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
+                const SizedBox(width: 8),
+                _FocusableIconButton(
+                  icon: Icons.settings,
+                  onPressed: onSettings,
+                  tooltip: 'Settings',
+                  focusNode: settingsFocusNode,
+                  size: 18,
+                ),
+              ],
+            ),
+            if (_isActive) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: state.progress.clamp(0.0, 1.0),
+                        minHeight: 4,
+                        backgroundColor: Colors.white24,
+                        valueColor: AlwaysStoppedAnimation(_stateColor()),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$pct%',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _hotendChip() {
     final heating = state.extruderPower > 0.01;
     const icon = Icons.local_fire_department;
@@ -396,8 +495,9 @@ class _FocusableIconButton extends StatefulWidget {
   final VoidCallback onPressed;
   final String tooltip;
   final FocusNode? focusNode;
+  final double size;
   const _FocusableIconButton(
-      {required this.icon, required this.onPressed, required this.tooltip, this.focusNode});
+      {required this.icon, required this.onPressed, required this.tooltip, this.focusNode, this.size = 24});
 
   @override
   State<_FocusableIconButton> createState() => _FocusableIconButtonState();
@@ -433,9 +533,13 @@ class _FocusableIconButtonState extends State<_FocusableIconButton> {
         ),
         child: IconButton(
           icon: Icon(widget.icon,
-              color: _focused ? Colors.white : Colors.white70),
+              color: _focused ? Colors.white : Colors.white70,
+              size: widget.size),
+          iconSize: widget.size + 8,
           onPressed: widget.onPressed,
           tooltip: widget.tooltip,
+          padding: EdgeInsets.all(widget.size < 20 ? 4 : 8),
+          constraints: const BoxConstraints(),
         ),
       ),
     );

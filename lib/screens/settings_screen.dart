@@ -13,12 +13,15 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _hostController = TextEditingController();
   final _portController = TextEditingController();
+  final _host2Controller = TextEditingController();
+  final _port2Controller = TextEditingController();
   final _hostFocus = FocusNode();
   final _portFocus = FocusNode();
   final _saveFocus = FocusNode();
   bool _loaded = false;
   bool _keepScreenOn = true;
   bool _showConsole = false;
+  bool _secondPrinterEnabled = false;
 
   @override
   void initState() {
@@ -53,20 +56,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     _hostController.text = prefs.getString('moonraker_host') ?? '';
     _portController.text = (prefs.getInt('moonraker_port') ?? 7125).toString();
+    _host2Controller.text = prefs.getString('moonraker_host_2') ?? '';
+    _port2Controller.text = (prefs.getInt('moonraker_port_2') ?? 7125).toString();
     setState(() {
       _keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
       _showConsole = prefs.getBool('show_console') ?? false;
+      _secondPrinterEnabled = prefs.getBool('second_printer_enabled') ?? false;
       _loaded = true;
     });
   }
 
   Future<void> _save() async {
     final port = int.tryParse(_portController.text.trim()) ?? 7125;
+    final port2 = int.tryParse(_port2Controller.text.trim()) ?? 7125;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('moonraker_host', _hostController.text.trim());
     await prefs.setInt('moonraker_port', port);
     await prefs.setBool('keep_screen_on', _keepScreenOn);
     await prefs.setBool('show_console', _showConsole);
+    await prefs.setBool('second_printer_enabled', _secondPrinterEnabled);
+    await prefs.setString('moonraker_host_2', _host2Controller.text.trim());
+    await prefs.setInt('moonraker_port_2', port2);
     await WakelockPlus.toggle(enable: _keepScreenOn);
     if (!mounted) return;
     Navigator.of(context).pop(true);
@@ -76,6 +86,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _hostController.dispose();
     _portController.dispose();
+    _host2Controller.dispose();
+    _port2Controller.dispose();
     _hostFocus.dispose();
     _portFocus.dispose();
     _saveFocus.dispose();
@@ -162,6 +174,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     contentPadding: EdgeInsets.zero,
+                  ),
+                  SwitchListTile(
+                    value: _secondPrinterEnabled,
+                    onChanged: (v) => setState(() => _secondPrinterEnabled = v),
+                    title: const Text('Enable second printer',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    subtitle: const Text(
+                      'Show two printers side by side.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 200),
+                    crossFadeState: _secondPrinterEnabled
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Divider(color: Colors.white24),
+                        const SizedBox(height: 8),
+                        const Text('Second printer host',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'IP address or hostname of your second printer.',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _host2Controller,
+                          autocorrect: false,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            hintText: '192.168.1.51',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text('Second printer port',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _port2Controller,
+                          autocorrect: false,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          decoration: const InputDecoration(
+                            hintText: '7125',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
