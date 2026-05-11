@@ -247,21 +247,23 @@ class _PrinterPaneState extends State<PrinterPane> {
                   transformationController: _transform,
                   minScale: 1.0,
                   maxScale: 6.0,
-                  clipBehavior: Clip.hardEdge,
+                  clipBehavior: Clip.none,
                   child: SizedBox.expand(
-                    child: Mjpeg(
-                      stream: stream,
-                      isLive: true,
-                      fit: BoxFit.contain,
-                      timeout: const Duration(seconds: 10),
-                      error: (context, error, stack) => Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'Camera feed unavailable\n$error',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.redAccent, fontSize: 14),
+                    child: RepaintBoundary(
+                      child: Mjpeg(
+                        stream: stream,
+                        isLive: true,
+                        fit: BoxFit.contain,
+                        timeout: const Duration(seconds: 10),
+                        error: (context, error, stack) => Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'Camera feed unavailable\n$error',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Colors.redAccent, fontSize: 14),
+                            ),
                           ),
                         ),
                       ),
