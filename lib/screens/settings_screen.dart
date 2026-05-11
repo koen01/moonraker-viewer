@@ -15,9 +15,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _portController = TextEditingController();
   final _host2Controller = TextEditingController();
   final _port2Controller = TextEditingController();
+
+  // One FocusNode per interactive element, in top-to-bottom order.
   final _hostFocus = FocusNode();
   final _portFocus = FocusNode();
+  final _keepScreenOnFocus = FocusNode();
+  final _showConsoleFocus = FocusNode();
+  final _secondPrinterFocus = FocusNode();
+  final _host2Focus = FocusNode();
+  final _port2Focus = FocusNode();
+  final _eStopFocus = FocusNode();
+  final _holdDurationFocus = FocusNode();
   final _saveFocus = FocusNode();
+
   bool _loaded = false;
   bool _keepScreenOn = true;
   bool _showConsole = false;
@@ -25,33 +35,93 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _eStopEnabled = true;
   int _eStopHoldMs = 1500;
 
+  // Ordered list of currently visible/reachable nodes (state-dependent).
+  List<FocusNode> get _navOrder => [
+        _hostFocus,
+        _portFocus,
+        _keepScreenOnFocus,
+        _showConsoleFocus,
+        _secondPrinterFocus,
+        if (_secondPrinterEnabled) ...[_host2Focus, _port2Focus],
+        _eStopFocus,
+        if (_eStopEnabled) _holdDurationFocus,
+        _saveFocus,
+      ];
+
   @override
   void initState() {
     super.initState();
-    // Arrow-key D-pad navigation between fields
-    _hostFocus.onKeyEvent = (node, event) {
-      if (event is KeyDownEvent &&
-          event.logicalKey == LogicalKeyboardKey.arrowDown) {
-        _portFocus.requestFocus();
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    };
-    _portFocus.onKeyEvent = (node, event) {
-      if (event is KeyDownEvent) {
-        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          _hostFocus.requestFocus();
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          _saveFocus.requestFocus();
-          return KeyEventResult.handled;
-        }
-        // Note: wakelock toggle is handled by SwitchListTile itself
-      }
-      return KeyEventResult.ignored;
-    };
+    _setupNav();
     _load();
+  }
+
+  // Wire up arrow-key navigation and D-pad select on every focusable node.
+  void _setupNav() {
+    void nav(
+      FocusNode node, {
+      VoidCallback? onSelect,
+    }) {
+      node.onKeyEvent = (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        final key = event.logicalKey;
+
+        if (key == LogicalKeyboardKey.arrowDown ||
+            key == LogicalKeyboardKey.arrowUp) {
+          final order = _navOrder;
+          final idx = order.indexOf(node);
+          if (idx == -1) return KeyEventResult.ignored;
+
+          final next = key == LogicalKeyboardKey.arrowDown
+              ? (idx < order.length - 1 ? order[idx + 1] : null)
+              : (idx > 0 ? order[idx - 1] : null);
+
+          if (next != null) {
+            next.requestFocus();
+            _scrollTo(next);
+          }
+          // Consume even at boundaries to stop focus leaking to the AppBar.
+          return KeyEventResult.handled;
+        }
+
+        // D-pad center (select) toggles switches; Enter/Space are handled
+        // natively by SwitchListTile's InkWell.
+        if (onSelect != null && key == LogicalKeyboardKey.select) {
+          onSelect();
+          return KeyEventResult.handled;
+        }
+
+        return KeyEventResult.ignored;
+      };
+    }
+
+    nav(_hostFocus);
+    nav(_portFocus);
+    nav(_keepScreenOnFocus,
+        onSelect: () => setState(() => _keepScreenOn = !_keepScreenOn));
+    nav(_showConsoleFocus,
+        onSelect: () => setState(() => _showConsole = !_showConsole));
+    nav(_secondPrinterFocus,
+        onSelect: () =>
+            setState(() => _secondPrinterEnabled = !_secondPrinterEnabled));
+    nav(_host2Focus);
+    nav(_port2Focus);
+    nav(_eStopFocus,
+        onSelect: () => setState(() => _eStopEnabled = !_eStopEnabled));
+    nav(_holdDurationFocus);
+    nav(_saveFocus);
+  }
+
+  void _scrollTo(FocusNode node) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = node.context;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -59,11 +129,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hostController.text = prefs.getString('moonraker_host') ?? '';
     _portController.text = (prefs.getInt('moonraker_port') ?? 7125).toString();
     _host2Controller.text = prefs.getString('moonraker_host_2') ?? '';
-    _port2Controller.text = (prefs.getInt('moonraker_port_2') ?? 7125).toString();
+    _port2Controller.text =
+        (prefs.getInt('moonraker_port_2') ?? 7125).toString();
     setState(() {
       _keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
       _showConsole = prefs.getBool('show_console') ?? false;
-      _secondPrinterEnabled = prefs.getBool('second_printer_enabled') ?? false;
+      _secondPrinterEnabled =
+          prefs.getBool('second_printer_enabled') ?? false;
       _eStopEnabled = prefs.getBool('estop_enabled') ?? true;
       _eStopHoldMs = prefs.getInt('estop_hold_ms') ?? 1500;
       _loaded = true;
@@ -96,6 +168,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _port2Controller.dispose();
     _hostFocus.dispose();
     _portFocus.dispose();
+    _keepScreenOnFocus.dispose();
+    _showConsoleFocus.dispose();
+    _secondPrinterFocus.dispose();
+    _host2Focus.dispose();
+    _port2Focus.dispose();
+    _eStopFocus.dispose();
+    _holdDurationFocus.dispose();
     _saveFocus.dispose();
     super.dispose();
   }
@@ -114,6 +193,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // ── Printer 1 ────────────────────────────────────────
                   const Text('Moonraker host',
                       style: TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold)),
@@ -150,14 +230,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     autocorrect: false,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onEditingComplete: () => _saveFocus.requestFocus(),
+                    onEditingComplete: () =>
+                        _keepScreenOnFocus.requestFocus(),
                     decoration: const InputDecoration(
                       hintText: '7125',
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // ── Toggles ──────────────────────────────────────────
                   SwitchListTile(
+                    focusNode: _keepScreenOnFocus,
                     value: _keepScreenOn,
                     onChanged: (v) => setState(() => _keepScreenOn = v),
                     title: const Text('Keep screen on',
@@ -170,6 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                   SwitchListTile(
+                    focusNode: _showConsoleFocus,
                     value: _showConsole,
                     onChanged: (v) => setState(() => _showConsole = v),
                     title: const Text('Show console overlay',
@@ -182,8 +267,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                   SwitchListTile(
+                    focusNode: _secondPrinterFocus,
                     value: _secondPrinterEnabled,
-                    onChanged: (v) => setState(() => _secondPrinterEnabled = v),
+                    onChanged: (v) =>
+                        setState(() => _secondPrinterEnabled = v),
                     title: const Text('Enable second printer',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
@@ -193,6 +280,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
+
+                  // ── Second printer fields (conditional) ──────────────
                   AnimatedCrossFade(
                     duration: const Duration(milliseconds: 200),
                     crossFadeState: _secondPrinterEnabled
@@ -210,13 +299,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 4),
                         const Text(
                           'IP address or hostname of your second printer.',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _host2Controller,
+                          focusNode: _host2Focus,
                           autocorrect: false,
                           keyboardType: TextInputType.url,
+                          onEditingComplete: () =>
+                              _port2Focus.requestFocus(),
                           decoration: const InputDecoration(
                             hintText: '192.168.1.51',
                             border: OutlineInputBorder(),
@@ -229,11 +322,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: _port2Controller,
+                          focusNode: _port2Focus,
                           autocorrect: false,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly
                           ],
+                          onEditingComplete: () => _eStopFocus.requestFocus(),
                           decoration: const InputDecoration(
                             hintText: '7125',
                             border: OutlineInputBorder(),
@@ -243,6 +338,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+
+                  // ── Safety ───────────────────────────────────────────
                   const Divider(color: Colors.white24),
                   const SizedBox(height: 8),
                   const Text(
@@ -254,6 +351,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         letterSpacing: 0.8),
                   ),
                   SwitchListTile(
+                    focusNode: _eStopFocus,
                     value: _eStopEnabled,
                     onChanged: (v) => setState(() => _eStopEnabled = v),
                     title: const Text('Emergency Stop',
@@ -289,6 +387,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                         Slider(
+                          focusNode: _holdDurationFocus,
                           value: _eStopHoldMs.toDouble(),
                           min: 800,
                           max: 3000,
@@ -298,13 +397,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const Text(
                           'Press & hold the E-stop button this long to trigger confirmation. A dialog will still ask before sending the command.',
-                          style:
-                              TextStyle(color: Colors.white38, fontSize: 12),
+                          style: TextStyle(
+                              color: Colors.white38, fontSize: 12),
                         ),
                         const SizedBox(height: 8),
                       ],
                     ),
                   ),
+
+                  // ── Save ─────────────────────────────────────────────
                   const SizedBox(height: 24),
                   ElevatedButton(
                     focusNode: _saveFocus,
