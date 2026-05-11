@@ -197,7 +197,8 @@ class InfoOverlay extends StatelessWidget {
           if (consoleLines != null && consoleLines!.isNotEmpty)
             Positioned(
               right: 12,
-              bottom: 110,
+              // Clear the e-stop button (bottom: 90, height: 56) when present
+              bottom: onEStopArmed != null ? 156 : 110,
               width: 320,
               child: _ConsoleBox(lines: consoleLines!),
             ),
