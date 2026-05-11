@@ -22,6 +22,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _keepScreenOn = true;
   bool _showConsole = false;
   bool _secondPrinterEnabled = false;
+  bool _eStopEnabled = true;
+  int _eStopHoldMs = 1500;
 
   @override
   void initState() {
@@ -62,6 +64,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _keepScreenOn = prefs.getBool('keep_screen_on') ?? true;
       _showConsole = prefs.getBool('show_console') ?? false;
       _secondPrinterEnabled = prefs.getBool('second_printer_enabled') ?? false;
+      _eStopEnabled = prefs.getBool('estop_enabled') ?? true;
+      _eStopHoldMs = prefs.getInt('estop_hold_ms') ?? 1500;
       _loaded = true;
     });
   }
@@ -77,6 +81,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setBool('second_printer_enabled', _secondPrinterEnabled);
     await prefs.setString('moonraker_host_2', _host2Controller.text.trim());
     await prefs.setInt('moonraker_port_2', port2);
+    await prefs.setBool('estop_enabled', _eStopEnabled);
+    await prefs.setInt('estop_hold_ms', _eStopHoldMs);
     await WakelockPlus.toggle(enable: _keepScreenOn);
     if (!mounted) return;
     Navigator.of(context).pop(true);
@@ -237,7 +243,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const Divider(color: Colors.white24),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Safety',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white38,
+                        letterSpacing: 0.8),
+                  ),
+                  SwitchListTile(
+                    value: _eStopEnabled,
+                    onChanged: (v) => setState(() => _eStopEnabled = v),
+                    title: const Text('Emergency Stop',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    subtitle: const Text(
+                      'Show button on camera view.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 200),
+                    crossFadeState: _eStopEnabled
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Hold Duration',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
+                            Text(
+                              '${(_eStopHoldMs / 1000).toStringAsFixed(1)}s',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          value: _eStopHoldMs.toDouble(),
+                          min: 800,
+                          max: 3000,
+                          divisions: 22,
+                          onChanged: (v) =>
+                              setState(() => _eStopHoldMs = v.round()),
+                        ),
+                        const Text(
+                          'Press & hold the E-stop button this long to trigger confirmation. A dialog will still ask before sending the command.',
+                          style:
+                              TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   ElevatedButton(
                     focusNode: _saveFocus,
                     onPressed: _save,

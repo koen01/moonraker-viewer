@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 import '../models/printer_state.dart';
 import '../services/moonraker_service.dart';
+import 'estop_button.dart';
 import 'info_overlay.dart';
 
 class PrinterPane extends StatefulWidget {
@@ -12,6 +13,8 @@ class PrinterPane extends StatefulWidget {
   final bool compact;
   final bool showOverlay;
   final bool showConsole;
+  final bool eStopEnabled;
+  final int eStopHoldMs;
   final VoidCallback onSettings;
   final FocusNode? settingsFocusNode;
   final VoidCallback? onTap;
@@ -24,6 +27,8 @@ class PrinterPane extends StatefulWidget {
     required this.compact,
     required this.showOverlay,
     required this.showConsole,
+    this.eStopEnabled = true,
+    this.eStopHoldMs = 1500,
     required this.onSettings,
     this.settingsFocusNode,
     this.onTap,
@@ -43,6 +48,7 @@ class _PrinterPaneState extends State<PrinterPane> {
   String? _lastThumbnailFilename;
   final List<String> _consoleLines = [];
   final TransformationController _transform = TransformationController();
+  bool _eStopDialogOpen = false;
 
   @override
   void initState() {
@@ -152,6 +158,51 @@ class _PrinterPaneState extends State<PrinterPane> {
     } catch (_) {}
   }
 
+  void _handleEStopArmed() {
+    if (_eStopDialogOpen || !mounted) return;
+    setState(() => _eStopDialogOpen = true);
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.transparent,
+        child: EStopConfirmDialog(
+          onConfirm: () {
+            Navigator.of(ctx).pop();
+            _sendEStop();
+          },
+          onCancel: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    ).then((_) {
+      if (mounted) setState(() => _eStopDialogOpen = false);
+    });
+  }
+
+  Future<void> _sendEStop() async {
+    try {
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 5);
+      final request = await client.postUrl(
+        Uri.parse(
+            'http://${widget.host}:${widget.port}/printer/emergency_stop'),
+      );
+      final response = await request.close();
+      await response.drain<void>();
+      client.close();
+      if (mounted) {
+        showEStopToast(
+          context,
+          error: response.statusCode < 300
+              ? null
+              : 'HTTP ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (mounted) showEStopToast(context, error: e.toString());
+    }
+  }
+
   @override
   void dispose() {
     _service?.dispose();
@@ -223,6 +274,9 @@ class _PrinterPaneState extends State<PrinterPane> {
               onSettings: widget.onSettings,
               settingsFocusNode: widget.settingsFocusNode,
               consoleLines: widget.showConsole ? _consoleLines : null,
+              onEStopArmed:
+                  widget.eStopEnabled ? _handleEStopArmed : null,
+              eStopHoldMs: widget.eStopHoldMs,
             ),
         ],
       ),

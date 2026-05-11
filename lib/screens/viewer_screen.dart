@@ -25,6 +25,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   // UI state
   bool _showOverlay = true;
   bool _showConsole = false;
+  bool _eStopEnabled = true;
+  int _eStopHoldMs = 1500;
 
   // Split/focus state: null = split (when 2 printers), else 0/1
   int? _focusedPane;
@@ -57,6 +59,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _secondPrinterEnabled = prefs.getBool('second_printer_enabled') ?? false;
       _host2 = prefs.getString('moonraker_host_2');
       _port2 = prefs.getInt('moonraker_port_2') ?? 7125;
+      _eStopEnabled = prefs.getBool('estop_enabled') ?? true;
+      _eStopHoldMs = prefs.getInt('estop_hold_ms') ?? 1500;
     });
     if (host == null || host.isEmpty) {
       _openSettings();
@@ -77,6 +81,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _secondPrinterEnabled = prefs.getBool('second_printer_enabled') ?? false;
         _host2 = prefs.getString('moonraker_host_2');
         _port2 = prefs.getInt('moonraker_port_2') ?? 7125;
+        _eStopEnabled = prefs.getBool('estop_enabled') ?? true;
+        _eStopHoldMs = prefs.getInt('estop_hold_ms') ?? 1500;
         // Reset focus to split when settings change
         _focusedPane = null;
         _showOverlay = true;
@@ -179,6 +185,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       compact: false,
       showOverlay: _showOverlay,
       showConsole: _showConsole,
+      eStopEnabled: _eStopEnabled,
+      eStopHoldMs: _eStopHoldMs,
       onSettings: _openSettings,
       settingsFocusNode: focusNode,
       onToggleOverlay: () => setState(() => _showOverlay = !_showOverlay),

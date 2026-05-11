@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/printer_state.dart';
+import 'estop_button.dart';
 
 class InfoOverlay extends StatelessWidget {
   final PrinterState state;
@@ -10,6 +11,8 @@ class InfoOverlay extends StatelessWidget {
   final FocusNode? settingsFocusNode;
   final List<String>? consoleLines;
   final bool compact;
+  final VoidCallback? onEStopArmed;
+  final int eStopHoldMs;
 
   const InfoOverlay({
     super.key,
@@ -20,6 +23,8 @@ class InfoOverlay extends StatelessWidget {
     this.settingsFocusNode,
     this.consoleLines,
     this.compact = false,
+    this.onEStopArmed,
+    this.eStopHoldMs = 1500,
   });
 
   Color _stateColor() {
@@ -168,6 +173,17 @@ class InfoOverlay extends StatelessWidget {
               ),
             ),
           ),
+
+          // ── E-Stop button (bottom-right, above bottom bar) ──────
+          if (onEStopArmed != null)
+            Positioned(
+              right: 12,
+              bottom: 90,
+              child: EStopButton(
+                holdDurationMs: eStopHoldMs,
+                onArmed: onEStopArmed!,
+              ),
+            ),
 
           // ── Console overlay (bottom-right) ──────────────────────
           if (consoleLines != null && consoleLines!.isNotEmpty)
