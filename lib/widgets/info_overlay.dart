@@ -202,6 +202,12 @@ class InfoOverlay extends StatelessWidget {
                     children: [
                       _hotendChip(),
                       _bedChip(),
+                      if (state.chamberTemp != null && state.chamberTemp! > 0)
+                        _chip(
+                          Icons.thermostat,
+                          'Chamber',
+                          '${state.chamberTemp!.toStringAsFixed(0)}°C',
+                        ),
                       if (state.currentLayer != null &&
                           state.totalLayer != null)
                         _chip(
@@ -303,6 +309,15 @@ class InfoOverlay extends StatelessWidget {
                   '${state.bedTemp.toStringAsFixed(0)}°/${state.bedTarget.toStringAsFixed(0)}°',
                   style: const TextStyle(color: Colors.white, fontSize: 11),
                 ),
+                if (state.chamberTemp != null && state.chamberTemp! > 0) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.thermostat, color: Colors.white60, size: 12),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${state.chamberTemp!.toStringAsFixed(0)}°',
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ],
                 const SizedBox(width: 8),
                 _FocusableIconButton(
                   icon: Icons.settings,

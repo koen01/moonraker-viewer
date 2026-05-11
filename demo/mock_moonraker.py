@@ -92,6 +92,10 @@ class PrintSim:
     def bed_power(self):
         return round(0.2 + 0.15 * math.sin(self.elapsed * 0.15), 4)
 
+    @property
+    def chamber_temp(self):
+        return round(42.0 + 1.5 * math.sin(self.elapsed * 0.05), 2)
+
     def full_status(self):
         pd = self.print_duration
         return {
@@ -131,6 +135,11 @@ class PrintSim:
                 "extrude_factor": 1.0,
                 "absolute_coordinates": True,
             },
+            "heater_generic chamber": {
+                "temperature": self.chamber_temp,
+                "target": 45.0,
+                "power": 0.1,
+            },
         }
 
     def delta_status(self):
@@ -151,6 +160,9 @@ class PrintSim:
             },
             "virtual_sdcard": {
                 "progress": self.progress,
+            },
+            "heater_generic chamber": {
+                "temperature": self.chamber_temp,
             },
         }
 

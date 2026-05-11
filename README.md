@@ -30,11 +30,12 @@ Works on Android phones and Android TV / Google TV.
   - Speed, flow rate, speed override
   - Layer count (`current / total`)
   - Print thumbnail (fetched from Moonraker)
+- **Split-screen dual-printer mode** — two printers side by side; tap a pane to focus it full-screen
 - **Klipper console overlay** — last 15 messages with timestamps, bottom-right corner (toggleable in Settings)
 - Webcam URL auto-detected via `/server/webcams/list`
 - Keep screen on toggle
 - Auto-reconnect on connection loss
-- Android TV / D-pad remote support (select toggles overlay; arrows navigate settings)
+- Android TV / D-pad remote support (left/right arrows select pane in split mode; select enters/toggles; arrows navigate settings)
 - Settings persisted via SharedPreferences
 
 ---
@@ -70,6 +71,9 @@ On first launch the Settings screen opens automatically:
 | Moonraker port | Moonraker API port | `7125` |
 | Keep screen on | Prevent the display from sleeping | on |
 | Show console overlay | Show last 15 Klipper messages bottom-right | off |
+| Enable second printer | Show a second printer side by side | off |
+| Second printer host | IP address or hostname of the second printer | — |
+| Second printer port | Moonraker API port for the second printer | `7125` |
 
 The camera stream URL is fetched automatically from Moonraker. Relative stream URLs are resolved against port `4408` (Creality K1/K1C nginx proxy).
 
@@ -79,12 +83,14 @@ The camera stream URL is fetched automatically from Moonraker. Relative stream U
 
 | Gesture / Input | Action |
 |---|---|
-| Tap | Toggle overlay |
+| Tap | Toggle overlay (single mode) / Focus pane (split mode) |
 | Pinch | Zoom (1×–6×) |
 | Pan (when zoomed) | Pan |
 | Double-tap | Reset zoom |
 | Tap gear icon | Open settings |
-| D-pad select / Enter | Toggle overlay |
+| Back gesture / button | Return to split view (if focused), or hide overlay |
+| D-pad left / right | Highlight a pane (split mode) |
+| D-pad select / Enter | Focus highlighted pane (split mode) / Toggle overlay (single mode) |
 | D-pad arrows | Navigate settings fields |
 
 ---

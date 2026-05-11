@@ -11,6 +11,7 @@ class PrinterState {
   final double bedTemp;
   final double bedTarget;
   final double bedPower;
+  final double? chamberTemp;
   final String? message;
   final double speed;        // mm/s
   final double speedFactor;  // multiplier (1.0 = 100%)
@@ -31,6 +32,7 @@ class PrinterState {
     required this.bedTemp,
     required this.bedTarget,
     this.bedPower = 0.0,
+    this.chamberTemp,
     this.message,
     this.speed = 0.0,
     this.speedFactor = 1.0,
@@ -60,6 +62,8 @@ class PrinterState {
     final extruder = sub('extruder');
     final heaterBed = sub('heater_bed');
     final gcodeMove = sub('gcode_move');
+    final heaterChamber = sub('heater_generic chamber');
+    final sensorChamber = sub('temperature_sensor chamber');
     final info =
         (printStats['info'] as Map?)?.cast<String, dynamic>() ?? const {};
 
@@ -93,6 +97,8 @@ class PrinterState {
       bedTemp: (heaterBed['temperature'] as num?)?.toDouble() ?? 0.0,
       bedTarget: (heaterBed['target'] as num?)?.toDouble() ?? 0.0,
       bedPower: (heaterBed['power'] as num?)?.toDouble() ?? 0.0,
+      chamberTemp: (heaterChamber['temperature'] as num?)?.toDouble() ??
+          (sensorChamber['temperature'] as num?)?.toDouble(),
       message: displayStatus['message'] as String?,
       speed: (gcodeMove['speed'] as num?)?.toDouble() ?? 0.0,
       speedFactor: (gcodeMove['speed_factor'] as num?)?.toDouble() ?? 1.0,

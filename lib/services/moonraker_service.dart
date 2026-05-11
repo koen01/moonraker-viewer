@@ -33,6 +33,8 @@ class MoonrakerService {
     'extruder': null,
     'heater_bed': null,
     'gcode_move': null,
+    'heater_generic chamber': null,
+    'temperature_sensor chamber': null,
   };
 
   void connect() {

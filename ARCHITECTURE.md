@@ -20,9 +20,10 @@ lib/
 ├── services/
 │   └── moonraker_service.dart     # WebSocket client
 ├── screens/
-│   ├── viewer_screen.dart         # Main screen
+│   ├── viewer_screen.dart         # Top-level screen; single or split layout
 │   └── settings_screen.dart      # Configuration screen
 └── widgets/
+    ├── printer_pane.dart          # Self-contained pane for one printer
     └── info_overlay.dart          # Status overlay UI
 ```
 
@@ -90,35 +91,35 @@ void connect()
 void dispose()
 ```
 
-**Does not** handle webcam URLs or thumbnails — those are fetched by `ViewerScreen` via plain HTTP.
+**Does not** handle webcam URLs or thumbnails — those are fetched by `PrinterPane` via plain HTTP.
 
 ---
 
-### `screens/ViewerScreen`
-The main screen and top-level state owner. Rendered immediately on launch.
+### `widgets/PrinterPane`
+Self-contained widget for a single printer. Owns everything needed to display one printer's feed and status. `ViewerScreen` creates one or two of these depending on whether split-screen mode is active.
 
 **Responsibilities:**
-- Load saved settings from `SharedPreferences`
-- Create and own the `MoonrakerService` instance
+- Create and own the `MoonrakerService` instance for its printer
 - Fetch the webcam stream URL from `GET /server/webcams/list`
 - Fetch print thumbnails from `GET /server/files/metadata?filename=<file>`
-- Render the MJPEG stream via `flutter_mjpeg`
-- Pass printer state and thumbnail URL down to `InfoOverlay`
-- Handle tap/double-tap/pinch gestures and D-pad key events
+- Maintain the 15-line rolling console buffer
+- Own the `TransformationController` for `InteractiveViewer`
+- Render the MJPEG stream (with or without zoom/pan depending on `compact`)
+- Pass state down to `InfoOverlay`
+- Reconnect when `host` or `port` props change
 
-**State fields:**
+**Props:**
 
-| Field | Purpose |
-|---|---|
-| `_moonrakerHost` / `_moonrakerPort` | Connection settings |
-| `_webcamUrl` | Resolved stream URL (fetched from Moonraker) |
-| `_thumbnailUrl` | URL of the current print's largest thumbnail |
-| `_state` | Latest `PrinterState` from the service stream |
-| `_connected` | Latest connection status |
-| `_showOverlay` | Whether `InfoOverlay` is visible |
-| `_showConsole` | Whether the console overlay is enabled (from prefs) |
-| `_consoleLines` | Rolling buffer of last 15 Klipper console messages |
-| `_transform` | `TransformationController` for `InteractiveViewer` |
+| Prop | Type | Description |
+|---|---|---|
+| `host` / `port` | `String` / `int` | Printer connection settings |
+| `compact` | `bool` | If true, renders without `InteractiveViewer` and with a minimal overlay (used in split view) |
+| `showOverlay` | `bool` | Whether `InfoOverlay` is visible |
+| `showConsole` | `bool` | Whether the console box is shown |
+| `onSettings` | `VoidCallback` | Opens `SettingsScreen` |
+| `settingsFocusNode` | `FocusNode?` | Focus node for the settings gear button (TV remote) |
+| `onTap` | `VoidCallback?` | Called on tap in compact mode (used to focus a split pane) |
+| `onToggleOverlay` | `VoidCallback?` | Called on tap in full mode to toggle the overlay |
 
 **Webcam URL resolution:**
 1. Call `GET /server/webcams/list`
@@ -132,8 +133,33 @@ The main screen and top-level state owner. Rendered immediately on launch.
 
 ---
 
+### `screens/ViewerScreen`
+Top-level screen. Orchestrates layout and user interactions; delegates all per-printer logic to `PrinterPane`.
+
+**Responsibilities:**
+- Load saved settings from `SharedPreferences`
+- Choose between single-pane and split-screen layout
+- Handle D-pad key events for pane selection (split mode) and overlay toggle (single mode)
+- Manage `PopScope` so back navigates: focused pane → split view → overlay hidden
+
+**State fields:**
+
+| Field | Purpose |
+|---|---|
+| `_host` / `_port` | Primary printer connection settings |
+| `_host2` / `_port2` | Second printer connection settings |
+| `_secondPrinterEnabled` | Whether split-screen mode is available |
+| `_showOverlay` | Whether `InfoOverlay` is visible in single/focused mode |
+| `_showConsole` | Whether the console overlay is enabled |
+| `_focusedPane` | `null` = split view; `0`/`1` = that pane is expanded full-screen |
+| `_highlightedPane` | D-pad cursor in split mode (0 or 1) |
+
+**Split-screen mode** is active when `_secondPrinterEnabled` is true, `_host2` is set, and `_focusedPane` is null. The view renders two `PrinterPane` widgets in a `Row` separated by a 1 px divider. Tapping a pane (or pressing D-pad select) sets `_focusedPane` and expands that pane full-screen.
+
+---
+
 ### `screens/SettingsScreen`
-Simple form to configure the Moonraker host and port. Persists values to `SharedPreferences` on save and returns `true` to the caller so `ViewerScreen` knows to reconnect.
+Form to configure both printers. Persists values to `SharedPreferences` on save and returns `true` so `ViewerScreen` knows to reload.
 
 **Fields saved:**
 
@@ -143,8 +169,11 @@ Simple form to configure the Moonraker host and port. Persists values to `Shared
 | `moonraker_port` | int | 7125 |
 | `keep_screen_on` | bool | true |
 | `show_console` | bool | false |
+| `second_printer_enabled` | bool | false |
+| `moonraker_host_2` | String | — |
+| `moonraker_port_2` | int | 7125 |
 
-Includes D-pad / arrow-key navigation between fields for Android TV remote support.
+Second-printer fields are shown/hidden with `AnimatedCrossFade` when the toggle changes. Includes D-pad / arrow-key navigation between fields for Android TV remote support.
 
 ---
 
@@ -165,6 +194,7 @@ Stateless widget. Renders a heads-up display over the camera feed.
 | `thumbnailUrl` | `String?` | URL for the print thumbnail image |
 | `onSettings` | `VoidCallback` | Opens `SettingsScreen` |
 | `consoleLines` | `List<String>?` | Rolling console buffer; `null` hides the console box |
+| `compact` | `bool` | Reduced layout for split-screen panes (hides thumbnail, console, and detail fields) |
 
 Contains three private helpers:
 - `_Thumbnail` — renders the thumbnail image with a placeholder fallback
@@ -177,9 +207,12 @@ Contains three private helpers:
 
 ```
 SharedPreferences
-      │  host, port
+      │  host, port, host2, port2, second_printer_enabled, …
       ▼
-ViewerScreen ──────────────────────────────────────────────────────┐
+ViewerScreen
+      │  single pane or split Row
+      ▼
+PrinterPane (×1 or ×2) ────────────────────────────────────────────┐
       │                                                             │
       │ creates                                                     │ HTTP GET
       ▼                                                             ▼
@@ -192,15 +225,15 @@ MoonrakerService                                        /server/webcams/list
       │  notify_gcode_response
       │
       │ merge partial updates
-      │ emit PrinterState     → ViewerScreen._state
-      │ emit bool             → ViewerScreen._connected
-      │ emit String           → ViewerScreen._consoleLines (rolling 15)
+      │ emit PrinterState     → PrinterPane._state
+      │ emit bool             → PrinterPane._connected
+      │ emit String           → PrinterPane._consoleLines (rolling 15)
       ▼
-ViewerScreen._state        ──► InfoOverlay
-ViewerScreen._connected    ──► InfoOverlay
-ViewerScreen._consoleLines ──► InfoOverlay (when show_console=true)
-ViewerScreen._webcamUrl    ──► Mjpeg widget
-ViewerScreen._thumbnailUrl ──► InfoOverlay
+PrinterPane._state        ──► InfoOverlay
+PrinterPane._connected    ──► InfoOverlay
+PrinterPane._consoleLines ──► InfoOverlay (when show_console=true)
+PrinterPane._webcamUrl    ──► Mjpeg widget (via InteractiveViewer or plain)
+PrinterPane._thumbnailUrl ──► InfoOverlay
 ```
 
 ---
@@ -210,7 +243,7 @@ ViewerScreen._thumbnailUrl ──► InfoOverlay
 No third-party state management library. The app uses:
 
 - **`StreamController.broadcast()`** in `MoonrakerService` to push updates
-- **`setState()`** in `ViewerScreen` to re-render on new `PrinterState` or connection changes
+- **`setState()`** in `PrinterPane` to re-render on new `PrinterState` or connection changes; `ViewerScreen` uses `setState` only for layout-level changes (split/focus mode, overlay visibility)
 - **`SharedPreferences`** for persistent configuration
 
 This is intentional — the app is simple enough that a full state management solution would add unnecessary complexity.
