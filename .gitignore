@@ -45,3 +45,9 @@ Thumbs.db
 android/key.properties
 **/*.jks
 **/*.keystore
+
+# Flutter crash logs
+flutter_*.log
+
+# Store assets (too large for git)
+icons/tv_demo.mp4
