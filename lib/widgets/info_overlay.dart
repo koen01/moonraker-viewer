@@ -13,6 +13,7 @@ class InfoOverlay extends StatelessWidget {
   final bool compact;
   final VoidCallback? onEStopArmed;
   final int eStopHoldMs;
+  final VoidCallback? onBackToSplit;
 
   const InfoOverlay({
     super.key,
@@ -25,6 +26,7 @@ class InfoOverlay extends StatelessWidget {
     this.compact = false,
     this.onEStopArmed,
     this.eStopHoldMs = 1500,
+    this.onBackToSplit,
   });
 
   Color _stateColor() {
@@ -163,6 +165,12 @@ class InfoOverlay extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onBackToSplit != null)
+                    _FocusableIconButton(
+                      icon: Icons.view_column_outlined,
+                      onPressed: onBackToSplit!,
+                      tooltip: 'Back to split view',
+                    ),
                   _FocusableIconButton(
                     icon: Icons.settings,
                     onPressed: onSettings,

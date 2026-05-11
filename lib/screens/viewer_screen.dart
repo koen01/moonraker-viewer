@@ -94,6 +94,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
 
+    // Return to split view from a focused pane (Escape / Back)
+    if (_focusedPane != null &&
+        (key == LogicalKeyboardKey.escape ||
+            key == LogicalKeyboardKey.goBack)) {
+      setState(() {
+        _focusedPane = null;
+        _showOverlay = true;
+      });
+      return KeyEventResult.handled;
+    }
+
     if (_splitMode) {
       if (key == LogicalKeyboardKey.arrowLeft) {
         setState(() => _highlightedPane = 0);
@@ -190,6 +201,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
       onSettings: _openSettings,
       settingsFocusNode: focusNode,
       onToggleOverlay: () => setState(() => _showOverlay = !_showOverlay),
+      onBackToSplit: _focusedPane != null
+          ? () => setState(() {
+                _focusedPane = null;
+                _showOverlay = true;
+              })
+          : null,
     );
   }
 

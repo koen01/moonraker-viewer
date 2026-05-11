@@ -19,6 +19,7 @@ class PrinterPane extends StatefulWidget {
   final FocusNode? settingsFocusNode;
   final VoidCallback? onTap;
   final VoidCallback? onToggleOverlay;
+  final VoidCallback? onBackToSplit;
 
   const PrinterPane({
     super.key,
@@ -33,6 +34,7 @@ class PrinterPane extends StatefulWidget {
     this.settingsFocusNode,
     this.onTap,
     this.onToggleOverlay,
+    this.onBackToSplit,
   });
 
   @override
@@ -277,6 +279,7 @@ class _PrinterPaneState extends State<PrinterPane> {
               onEStopArmed:
                   widget.eStopEnabled ? _handleEStopArmed : null,
               eStopHoldMs: widget.eStopHoldMs,
+              onBackToSplit: widget.onBackToSplit,
             ),
         ],
       ),
