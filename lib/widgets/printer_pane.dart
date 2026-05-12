@@ -131,7 +131,32 @@ class _PrinterPaneState extends State<PrinterPane> {
     } catch (_) {}
   }
 
+  // go2rtc always serves MJPEG at /api/stream.mjpeg?src=X.
+  // Moonraker configs (both webrtc-go2rtc and mjpegstreamer-adaptive) typically
+  // store the viewer page URL (/stream.html?src=X) instead, so we rewrite it.
+  String _resolveStreamUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url;
+    if (uri.path.endsWith('/stream.html')) {
+      final src = uri.queryParameters['src'];
+      if (src != null) {
+        return uri
+            .replace(
+              path: uri.path.replaceFirst('/stream.html', '/api/stream.mjpeg'),
+              queryParameters: {'src': src},
+            )
+            .toString();
+      }
+    }
+    return url;
+  }
+
   Future<void> _fetchWebcamUrl() async {
+    // Skip service types that cannot be adapted to a raw MJPEG stream.
+    const nonMjpegServices = {
+      'webrtc-camerastreamer',
+      'hlsstreamer',
+    };
     try {
       final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
       final request = await client.getUrl(
@@ -146,8 +171,11 @@ class _PrinterPaneState extends State<PrinterPane> {
       for (final wc in webcams) {
         if (wc is! Map) continue;
         if (wc['enabled'] == false) continue;
-        final streamUrl = (wc['stream_url'] as String? ?? '').trim();
+        final service = (wc['service'] as String? ?? '').toLowerCase();
+        if (nonMjpegServices.contains(service)) continue;
+        var streamUrl = (wc['stream_url'] as String? ?? '').trim();
         if (streamUrl.isEmpty) continue;
+        streamUrl = _resolveStreamUrl(streamUrl);
         if (streamUrl.startsWith('http')) {
           if (mounted) setState(() => _webcamUrl = streamUrl);
           return;
