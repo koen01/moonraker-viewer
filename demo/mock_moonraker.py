@@ -323,12 +323,18 @@ async def relay_upstream_loop(url: str):
     while True:
         try:
             log.info(f"Connecting to relay stream: {url}")
-            timeout = aiohttp.ClientTimeout(connect=10, sock_read=60)
+            # Total timeout disabled (None) so long-lived MJPEG streams don't
+            # get cut off; sock_read covers individual read stalls only.
+            timeout = aiohttp.ClientTimeout(connect=10, total=None, sock_read=30)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as resp:
                     log.info(f"Relay upstream connected (HTTP {resp.status})")
                     buf = b""
-                    async for chunk in resp.content.iter_any():
+                    while True:
+                        chunk = await resp.content.read(65536)
+                        if not chunk:
+                            log.info("Relay upstream stream ended")
+                            break
                         buf += chunk
                         # Extract complete JPEG frames via SOI/EOI markers.
                         while True:
@@ -355,8 +361,10 @@ async def relay_upstream_loop(url: str):
         except asyncio.CancelledError:
             return
         except Exception as e:
-            log.warning(f"Relay upstream error: {e} — reconnecting in 3s")
-            await asyncio.sleep(3)
+            log.warning(f"Relay upstream error: {e}")
+
+        log.info("Reconnecting in 3s")
+        await asyncio.sleep(3)
 
 
 async def mjpeg_relay_handler(request):
