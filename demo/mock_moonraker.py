@@ -16,6 +16,11 @@ Usage:
 
   # Relay a real printer's MJPEG stream (no ffmpeg needed, --video ignored):
   python3 mock_moonraker.py --relay-stream http://192.168.1.50:4408/webcam
+
+  # Relay both the MJPEG stream and live Moonraker data from a real printer:
+  python3 mock_moonraker.py \\
+      --relay-stream http://192.168.1.50:4408/webcam \\
+      --relay-ws     ws://192.168.1.50:7125/websocket
 """
 
 import argparse
@@ -179,6 +184,12 @@ class PrintSim:
 sim = PrintSim()
 connected_ws: set = set()
 
+# ── WebSocket relay state ────────────────────────────────────────────────────
+
+# Merged printer status kept up-to-date by relay_ws_upstream_loop.
+# ws_handler serves this to new clients when --relay-ws is active.
+_relay_ws_status: dict = {}
+
 # ── WebSocket handler ────────────────────────────────────────────────────────
 
 async def ws_handler(request):
@@ -195,11 +206,12 @@ async def ws_handler(request):
                 msg_id = data.get("id")
 
                 if method in ("printer.objects.subscribe", "printer.objects.query"):
+                    status = _relay_ws_status if request.app["relay_ws"] else sim.full_status()
                     await ws.send_str(json.dumps({
                         "jsonrpc": "2.0",
                         "result": {
                             "eventtime": time.monotonic(),
-                            "status": sim.full_status(),
+                            "status": status,
                         },
                         "id": msg_id,
                     }))
@@ -211,7 +223,7 @@ async def ws_handler(request):
 
     return ws
 
-# ── Push update loop ─────────────────────────────────────────────────────────
+# ── Push update loop (simulated data only) ───────────────────────────────────
 
 async def push_loop():
     tick = 0
@@ -245,6 +257,84 @@ async def push_loop():
             except Exception:
                 dead.add(ws)
         connected_ws.difference_update(dead)
+
+# ── Moonraker WebSocket relay ─────────────────────────────────────────────────
+
+# Objects we subscribe to on the upstream printer.
+_RELAY_WS_OBJECTS = {
+    "print_stats": None,
+    "virtual_sdcard": None,
+    "display_status": None,
+    "extruder": None,
+    "heater_bed": None,
+    "gcode_move": None,
+    "heater_generic chamber": None,
+    "temperature_sensor chamber": None,
+}
+
+
+async def relay_ws_upstream_loop(url: str):
+    """Connect to a real printer's Moonraker WebSocket and fan all push
+    notifications out to every connected demo client."""
+    global _relay_ws_status
+    sub_id = 1  # fixed id for our subscription request
+
+    while True:
+        try:
+            log.info(f"Connecting to relay WS: {url}")
+            timeout = aiohttp.ClientTimeout(connect=10, total=None, sock_read=60)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.ws_connect(url) as upstream:
+                    log.info("Relay WS upstream connected")
+                    await upstream.send_str(json.dumps({
+                        "jsonrpc": "2.0",
+                        "method": "printer.objects.subscribe",
+                        "params": {"objects": _RELAY_WS_OBJECTS},
+                        "id": sub_id,
+                    }))
+
+                    async for msg in upstream:
+                        if msg.type == aiohttp.WSMsgType.TEXT:
+                            data = json.loads(msg.data)
+
+                            # Initial subscription response — seed the status cache.
+                            if data.get("id") == sub_id and "result" in data:
+                                status = data["result"].get("status", {})
+                                _relay_ws_status.update(status)
+                                log.info("Relay WS: received initial printer status")
+                                continue
+
+                            method = data.get("method", "")
+
+                            # Status push — merge into cache, forward verbatim.
+                            if method == "notify_status_update":
+                                params = data.get("params", [])
+                                if params and isinstance(params[0], dict):
+                                    _relay_ws_status.update(params[0])
+
+                            # Forward any printer notification to all demo clients.
+                            if method in ("notify_status_update", "notify_gcode_response",
+                                          "notify_klippy_ready", "notify_klippy_shutdown",
+                                          "notify_klippy_disconnected"):
+                                dead = set()
+                                for client in list(connected_ws):
+                                    try:
+                                        await client.send_str(msg.data)
+                                    except Exception:
+                                        dead.add(client)
+                                connected_ws.difference_update(dead)
+
+                        elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                            log.info("Relay WS upstream closed")
+                            break
+
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            log.warning(f"Relay WS upstream error: {e}")
+
+        log.info("Relay WS reconnecting in 3s")
+        await asyncio.sleep(3)
 
 # ── MJPEG stream via ffmpeg ──────────────────────────────────────────────────
 
@@ -433,9 +523,13 @@ async def main():
     parser.add_argument("--relay-stream", default=None, metavar="URL",
                         help="Relay a real printer's MJPEG stream instead of serving "
                              "from a local file. Example: http://192.168.1.50:4408/webcam")
+    parser.add_argument("--relay-ws", default=None, metavar="URL",
+                        help="Relay live Moonraker data from a real printer instead of "
+                             "using simulated data. Example: ws://192.168.1.50:7125/websocket")
     args = parser.parse_args()
 
     relay_url = args.relay_stream
+    relay_ws_url = args.relay_ws
 
     if relay_url is None and not Path(args.video).exists():
         log.error(f"Video file not found: {args.video}  (pass --relay-stream URL to relay a real printer instead)")
@@ -443,6 +537,7 @@ async def main():
 
     app = web.Application()
     app["port"] = args.port
+    app["relay_ws"] = relay_ws_url is not None
 
     webcam_handler = mjpeg_relay_handler if relay_url else mjpeg_handler
     if not relay_url:
@@ -463,10 +558,16 @@ async def main():
         log.info(f"Relaying stream from: {relay_url}")
     else:
         log.info(f"Streaming video: {args.video}")
+    if relay_ws_url:
+        log.info(f"Relaying Moonraker data from: {relay_ws_url}")
 
-    tasks = [push_loop()]
+    tasks = []
+    if not relay_ws_url:
+        tasks.append(push_loop())   # simulated push; skip when upstream provides real data
     if relay_url:
         tasks.append(relay_upstream_loop(relay_url))
+    if relay_ws_url:
+        tasks.append(relay_ws_upstream_loop(relay_ws_url))
     tasks.append(asyncio.Event().wait())  # run forever
 
     await asyncio.gather(*tasks)
