@@ -181,11 +181,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.black,
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _save();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Settings'),
+          backgroundColor: Colors.black,
+        ),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -419,6 +424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 }
