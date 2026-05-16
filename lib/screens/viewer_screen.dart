@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../widgets/printer_pane.dart';
+import '../widgets/walkthrough_overlay.dart';
 import 'settings_screen.dart';
 
 class ViewerScreen extends StatefulWidget {
@@ -27,6 +28,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _showConsole = false;
   bool _eStopEnabled = true;
   int _eStopHoldMs = 1500;
+  bool _showWalkthrough = false;
 
   // Split/focus state: null = split (when 2 printers), else 0/1
   int? _focusedPane;
@@ -61,8 +63,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _port2 = prefs.getInt('moonraker_port_2') ?? 7125;
       _eStopEnabled = prefs.getBool('estop_enabled') ?? true;
       _eStopHoldMs = prefs.getInt('estop_hold_ms') ?? 1500;
+      final onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
+      _showWalkthrough = !onboardingSeen;
     });
-    if (host == null || host.isEmpty) {
+  }
+
+  Future<void> _dismissWalkthrough() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_seen', true);
+    if (!mounted) return;
+    setState(() => _showWalkthrough = false);
+    if (_host == null || _host!.isEmpty) {
       _openSettings();
     }
   }
@@ -162,22 +173,31 @@ class _ViewerScreenState extends State<ViewerScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: Focus(
-          autofocus: true,
-          onKeyEvent: _handleKeyEvent,
-          child: host == null || host.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Tap the gear icon to configure your printer.',
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                  ),
-                )
-              : _splitMode
-                  ? _buildSplitView(host)
-                  : _buildSingleView(host),
+        body: Stack(
+          children: [
+            Focus(
+              autofocus: !_showWalkthrough,
+              onKeyEvent: _handleKeyEvent,
+              child: host == null || host.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Tap the gear icon to configure your printer.',
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                      ),
+                    )
+                  : _splitMode
+                      ? _buildSplitView(host)
+                      : _buildSingleView(host),
+            ),
+            if (_showWalkthrough)
+              Positioned.fill(
+                child: WalkthroughOverlay(onDone: _dismissWalkthrough),
+              ),
+          ],
         ),
       ),
     );
